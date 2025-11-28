@@ -1,4 +1,4 @@
-// server.js
+// server.js (relevant parts)
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
@@ -9,49 +9,60 @@ const taskRoutes = require('./routes/tasks');
 
 const app = express();
 
-// === CORS middleware (dynamic origin allow) ===
-app.use(cors({
-  origin: (origin, callback) => {
-    // allow non-browser requests like curl (no origin)
-    if (!origin) return callback(null, true);
-    // accept all origins for now (dev). Replace with an allowlist for production.
-    return callback(null, true);
-  },
-  methods: ['GET','POST','PUT','DELETE','OPTIONS'],
-  allowedHeaders: ['Content-Type','Authorization'],
-  credentials: true
-}));
+// Read allowed origins from env (comma-separated) or use sensible defaults
+// Example: ALLOWED_ORIGINS="http://localhost:5173,http://localhost:3000,https://your-netlify.netlify.app"
+const allowedOriginsEnv = process.env.ALLOWED_ORIGINS || '';
+const allowedOrigins = allowedOriginsEnv
+  ? allowedOriginsEnv.split(',').map(s => s.trim())
+  : [
+      'http://localhost:5173', // Vite
+      'http://localhost:3000', // CRA (if used)
+      'http://localhost:5000'  // optional: handy when testing same host
+    ];
 
-// === Manual preflight responder (no use of app.options('*', ...)) ===
+// CORS middleware
 app.use((req, res, next) => {
-  if (req.method === 'OPTIONS') {
-    // set CORS headers explicitly so preflight returns them
-    const origin = req.headers.origin || '*';
-    res.setHeader('Access-Control-Allow-Origin', origin);
-    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization');
-    // if you use cookies with credentials: true, also echo origin (not '*')
-    // res.setHeader('Access-Control-Allow-Credentials', 'true');
-    return res.sendStatus(204);
+  const origin = req.headers.origin;
+  // helpful debug log — remove or lower in production
+  // console.log('Incoming request origin:', origin);
+
+  // If no origin (curl, server-to-server), allow
+  if (!origin) {
+    return next();
   }
-  next();
+
+  // If origin is allowed, use cors() to set headers; else continue without CORS headers
+  if (allowedOrigins.includes(origin)) {
+    cors({
+      origin: origin, // echo the allowed origin
+      methods: ['GET','POST','PUT','DELETE','OPTIONS'],
+      allowedHeaders: ['Content-Type','Authorization'],
+      credentials: true
+    })(req, res, next);
+  } else {
+    // origin not allowed -> do NOT attach CORS headers (browser will block)
+    // but do not throw an Error (prevents noisy stack traces)
+    // You can optionally log rejected origins for debugging:
+    console.warn(`CORS: rejected origin ${origin}`);
+    next();
+  }
 });
 
-// JSON body parsing
+// parse JSON
 app.use(express.json());
 
-// Routes
+// routes
 app.use('/api/auth', authRoutes);
 app.use('/api/employees', empRoutes);
 app.use('/api/tasks', taskRoutes);
 
-// Start server after DB connects
+// start server after DB connect
 const PORT = process.env.PORT || 5000;
 connectDB(process.env.MONGO_URI)
   .then(() => {
     app.listen(PORT, () => console.log(`Server running on ${PORT}`));
   })
   .catch(err => {
-    console.error('Failed to connect DB:', err);
+    console.error('DB connection failed', err);
     process.exit(1);
   });
