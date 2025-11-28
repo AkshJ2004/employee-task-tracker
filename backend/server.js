@@ -10,12 +10,24 @@ const taskRoutes = require('./routes/tasks');
 const app = express(); // <-- create app BEFORE using it
 
 // Allowed origins (add or change as needed)
-const cors = require('cors');
+const allowedOrigins = [
+  process.env.CLIENT_URL || 'http://localhost:3000',
+  'http://localhost:5173' || 'https://employee-task-tracker-1.onrender.com'  // Vite dev server
+];
+
+// Use CORS with an origin-checking function
 app.use(cors({
-  origin: "https://employee-task-tracker-2.onrender.com",
-  methods: ["GET","POST","PUT","DELETE","OPTIONS"],
-  allowedHeaders: ["Content-Type","Authorization"],
-  credentials: true   // only if you use cookies/credentials
+  origin: function(origin, callback){
+    // allow requests with no origin (e.g., curl, server-to-server)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      return callback(null, true);
+    }
+    return callback(new Error('CORS policy: origin not allowed'));
+  },
+  methods: ['GET','POST','PUT','DELETE','OPTIONS'],
+  allowedHeaders: ['Content-Type','Authorization'],
+  credentials: true
 }));
 
 // JSON body parsing
