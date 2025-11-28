@@ -203,7 +203,3 @@ Made with ❤️ by Aksh
 
 Feel free to fork this project and submit a pull request. Suggestions and improvements are always welcome!
 
-
----
-
-**Made with ❤️ by [Your Name]**
