@@ -12,7 +12,7 @@ const app = express(); // <-- create app BEFORE using it
 // Allowed origins (add or change as needed)
 const allowedOrigins = [
   process.env.CLIENT_URL || 'http://localhost:3000',
-  'http://localhost:5173'   // Vite dev server
+  'http://localhost:5173' || 'https://employee-task-tracker-1.onrender.com'  // Vite dev server
 ];
 
 // Use CORS with an origin-checking function
