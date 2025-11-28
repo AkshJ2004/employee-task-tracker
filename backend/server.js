@@ -9,33 +9,38 @@ const taskRoutes = require('./routes/tasks');
 
 const app = express();
 
-// === Dynamic CORS that accepts any origin ===
-// This allows any origin while still supporting credentials (if you use them).
-// Good for development / testing. For production restrict to exact origins.
+// === CORS middleware (dynamic origin allow) ===
 app.use(cors({
   origin: (origin, callback) => {
-    // For non-browser requests (curl, server-to-server), origin is undefined — allow it.
+    // allow non-browser requests like curl (no origin)
     if (!origin) return callback(null, true);
-    // Optionally log the origin for debugging (remove in production)
-    console.log('CORS request from origin:', origin);
-    // Allow all origins:
+    // accept all origins for now (dev). Replace with an allowlist for production.
     return callback(null, true);
-    // If you want to restrict, replace above line with:
-    // const allowed = ['https://your-frontend.com', 'http://localhost:5173', ...];
-    // return allowed.includes(origin) ? callback(null, true) : callback(new Error('Not allowed by CORS'));
   },
   methods: ['GET','POST','PUT','DELETE','OPTIONS'],
   allowedHeaders: ['Content-Type','Authorization'],
   credentials: true
 }));
 
-// Ensure OPTIONS preflight returns proper headers
-app.options('*', cors());
+// === Manual preflight responder (no use of app.options('*', ...)) ===
+app.use((req, res, next) => {
+  if (req.method === 'OPTIONS') {
+    // set CORS headers explicitly so preflight returns them
+    const origin = req.headers.origin || '*';
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization');
+    // if you use cookies with credentials: true, also echo origin (not '*')
+    // res.setHeader('Access-Control-Allow-Credentials', 'true');
+    return res.sendStatus(204);
+  }
+  next();
+});
 
 // JSON body parsing
 app.use(express.json());
 
-// Routes (mounted after CORS)
+// Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/employees', empRoutes);
 app.use('/api/tasks', taskRoutes);
